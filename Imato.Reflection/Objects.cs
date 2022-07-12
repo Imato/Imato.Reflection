@@ -1,46 +1,110 @@
 ﻿using FastMember;
-using System.Text;
+using System.Collections;
 
 namespace Imato.Reflection
 {
     public static class Objects
     {
-        public static IDictionary<string, object?> GetFields<T>(this T obj)
+        /// <summary>
+        /// Get object fields dictionary
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj">Object</param>
+        /// <param name="skipFields">List on fields </param>
+        /// <param name="skipChildren">Skip children object</param>
+        /// <returns></returns>
+        public static IDictionary<string, object?> GetFields<T>(this T? obj, string[]? skipFields = null, bool skipChildren = false)
         {
-            return obj.GetFieldsList();
+            return GetFieldsList(obj, skipFields, skipChildren);
         }
 
-        private static IDictionary<string, object?> GetFieldsList<T>(this T obj, int level = 0)
+        private static IDictionary<string, object?> GetFieldsList(object? obj,
+            Type type,
+            string[]? skipFields,
+            bool skipChildren,
+            int level = 0,
+            string fieldName = "")
         {
             var dic = new Dictionary<string, object?>();
-            var type = typeof(T);
+            var done = false;
+
+            if (obj == null)
+            {
+                return dic;
+            }
+
+            if (type.GetInterfaces().Any(x => x.IsGenericType &&
+                x.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
+            {
+                var id = 1;
+                foreach (var item in (IEnumerable)obj)
+                {
+                    var name = $"{fieldName}[{id}]";
+                    foreach (var d in GetFieldsList(item, item.GetType(), skipFields, skipChildren, level, name))
+                    {
+                        AddToDictionary(dic, d.Key, d.Value, skipFields);
+                    }
+                    id++;
+                }
+                return dic;
+            }
+
             var accessor = TypeAccessor.Create(type);
             foreach (var m in accessor.GetMembers())
             {
-                if (m.CanRead)
+                done = false;
+
+                if (m.CanRead && (skipFields == null || !skipFields.Contains(m.Name)))
                 {
+                    var name = fieldName == "" ? m.Name : $"{fieldName}.{m.Name}";
                     var value = accessor[obj, m.Name];
                     if (m.Type.IsValueType || m.Type == typeof(string) || value is null)
                     {
-                        dic.Add(m.Name, value);
+                        AddToDictionary(dic, name, value, skipFields);
+                        done = true;
                     }
-                    else
+
+                    if (!done && level < 10 && !skipChildren)
                     {
-                        if (level < 10)
-                            foreach (var n in value.GetFieldsList(level++))
-                            {
-                                dic.Add($"{m.Name}.{n.Key}", n.Value);
-                            }
+                        foreach (var n in GetFieldsList(value, m.Type, skipFields, false, level++, name))
+                        {
+                            AddToDictionary(dic, n.Key, n.Value, skipFields);
+                        }
                     }
                 }
             }
             return dic;
         }
 
-        public static IDictionary<string, object?> GetDiff<T>(T obj1, T obj2)
+        private static void AddToDictionary(Dictionary<string, object?> dic,
+            string key,
+            object? value = null,
+            string[]? skipFields = null)
         {
-            var dic1 = obj1.GetFields();
-            var dic2 = obj2.GetFields();
+            if ((skipFields == null || !skipFields.Contains(key)) && !dic.ContainsKey(key))
+            {
+                dic.Add(key, value);
+            }
+        }
+
+        private static IDictionary<string, object?> GetFieldsList<T>(T obj, string[]? skipFields, bool skipChildren)
+        {
+            var type = typeof(T);
+            return GetFieldsList(obj, type, skipFields, skipChildren);
+        }
+
+        /// <summary>
+        /// Get object differences as dictionary of fields
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj1"></param>
+        /// <param name="obj2"></param>
+        /// <param name="skipFields"></param>
+        /// <returns></returns>
+        public static IDictionary<string, object?> GetDiff<T>(T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
+        {
+            var dic1 = obj1.GetFields(skipFields, skipChildren);
+            var dic2 = obj2.GetFields(skipFields, skipChildren);
             var dif = new Dictionary<string, object?>();
             foreach (var d in dic1)
             {
@@ -49,11 +113,11 @@ namespace Imato.Reflection
                 {
                     dif.Add(d.Key, d.Value);
                 }
-                if (d.Value is null && !(dic2[d.Key] is null))
+                if (d.Value is null && dic2[d.Key] is not null)
                 {
                     dif.Add(d.Key, null);
                 }
-                if (!(d.Value is null) && dic2[d.Key] is null)
+                if (d.Value is not null && dic2[d.Key] is null)
                 {
                     dif.Add(d.Key, d.Value);
                 }
@@ -61,36 +125,10 @@ namespace Imato.Reflection
             return dif;
         }
 
-        public static string ToCsvString(this IDictionary<string, object?> dic)
+        public static bool IsEqual<T>(T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
         {
-            var sb = new StringBuilder();
-            var first = true;
-            foreach (var d in dic)
-            {
-                if (!first)
-                {
-                    sb.Append("; ");
-                }
-                else
-                {
-                    first = false;
-                }
-                sb.Append(@"""");
-                sb.Append(d.Key);
-                sb.Append(@"""");
-                sb.Append(": ");
-                sb.Append(@"""");
-                if (d.Value is DateTime)
-                {
-                    sb.Append(((DateTime)d.Value).ToString("yyyy-MM-ddTHH:mm:ss.fff"));
-                }
-                else
-                {
-                    sb.Append(d.Value?.ToString() ?? "null");
-                }
-                sb.Append(@"""");
-            }
-            return sb.ToString();
+            var diff = GetDiff(obj1, obj2, skipFields, skipChildren);
+            return diff.Count == 0;
         }
     }
 }

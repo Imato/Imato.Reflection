@@ -8,6 +8,6 @@ namespace Imato.Reflection.Test
         public string Name { get; set; } = "";
         public DateTime Date { get; set; }
         public bool Flag { get; set; }
-        public TestClass? Test { get; set; }
+        public Nested? Test { get; set; }
     }
 }
