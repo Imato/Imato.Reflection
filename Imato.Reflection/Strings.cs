@@ -32,12 +32,14 @@ namespace Imato.Reflection
         /// </summary>
         /// <param name="dic"></param>
         /// <returns></returns>
-        public static string ToCsvString(this IDictionary<string, object?> dic)
+        public static string ToCsv(this IDictionary<string, object?> dic)
         {
             var sb = new StringBuilder();
             var first = true;
+            var done = false;
             foreach (var d in dic)
             {
+                done = false;
                 if (!first)
                 {
                     sb.Append("; ");
@@ -50,18 +52,41 @@ namespace Imato.Reflection
                 sb.Append(d.Key);
                 sb.Append(@"""");
                 sb.Append(": ");
-                sb.Append(@"""");
-                if (d.Value is DateTime)
+
+                if (d.Value == null)
                 {
-                    sb.Append(((DateTime)d.Value).ToString("yyyy-MM-ddTHH:mm:ss.fff"));
+                    sb.Append("null");
+                    done = true;
                 }
-                else
+
+                if (!done && d.Value is DateTime)
+                {
+                    sb.Append(@"""");
+                    sb.Append(((DateTime)d.Value).ToString("yyyy-MM-ddTHH:mm:ss.fff"));
+                    sb.Append(@"""");
+                    done = true;
+                }
+
+                if (!done && d.Value is ValueType && d.Value is not string)
                 {
                     sb.Append(d.Value?.ToString() ?? "null");
+                    done = true;
                 }
-                sb.Append(@"""");
+
+                if (!done)
+                {
+                    sb.Append(@"""");
+                    sb.Append(d.Value?.ToString() ?? "null");
+                    sb.Append(@"""");
+                }
             }
             return sb.ToString();
+        }
+
+        public static string ToCsv<T>(this T obj)
+        {
+            var dic = obj.GetFields();
+            return dic.ToCsv();
         }
     }
 }

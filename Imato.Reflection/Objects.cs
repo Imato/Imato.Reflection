@@ -101,31 +101,43 @@ namespace Imato.Reflection
         /// <param name="obj2"></param>
         /// <param name="skipFields"></param>
         /// <returns></returns>
-        public static IDictionary<string, object?> GetDiff<T>(T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
+        public static IDictionary<string, object?> GetDiff<T>(this T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
         {
             var dic1 = obj1.GetFields(skipFields, skipChildren);
             var dic2 = obj2.GetFields(skipFields, skipChildren);
             var dif = new Dictionary<string, object?>();
             foreach (var d in dic1)
             {
-                if (!(d.Value is null || dic2[d.Key] is null)
+                if (d.Value is not null
+                    && dic2.ContainsKey(d.Key)
+                    && dic2[d.Key] is not null
                     && !d.Value.Equals(dic2[d.Key]))
                 {
                     dif.Add(d.Key, d.Value);
                 }
-                if (d.Value is null && dic2[d.Key] is not null)
+                if (d.Value is null && dic2.ContainsKey(d.Key) && dic2[d.Key] is not null)
                 {
                     dif.Add(d.Key, null);
                 }
-                if (d.Value is not null && dic2[d.Key] is null)
+                if (d.Value is not null && (!dic2.ContainsKey(d.Key) || dic2[d.Key] is null))
                 {
                     dif.Add(d.Key, d.Value);
                 }
             }
+
+            foreach (var d in dic2)
+            {
+                if (d.Value is not null
+                    && !dic1.ContainsKey(d.Key))
+                {
+                    dif.Add(d.Key, null);
+                }
+            }
+
             return dif;
         }
 
-        public static bool IsEqual<T>(T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
+        public static bool IsEqual<T>(this T obj1, T obj2, string[]? skipFields = null, bool skipChildren = false)
         {
             var diff = GetDiff(obj1, obj2, skipFields, skipChildren);
             return diff.Count == 0;

@@ -78,13 +78,15 @@ namespace Imato.Reflection.Test
                 Date = DateTime.Parse("2022-08-03"),
                 Flag = false
             };
-            var diff = Objects.GetDiff(obj1, obj2);
+            var diff = obj1.GetDiff(obj2);
             Assert.AreEqual(1, diff.Count);
             Assert.AreEqual("Test 1", diff["Name"]);
 
-            diff = Objects.GetDiff(obj2, obj1);
+            diff = obj2.GetDiff(obj1);
             Assert.AreEqual(1, diff.Count);
             Assert.AreEqual("Test 2", diff["Name"]);
+
+            Assert.IsFalse(obj1.IsEqual(obj2));
         }
 
         [Test]
@@ -98,8 +100,8 @@ namespace Imato.Reflection.Test
                 Flag = false
             };
             var dic = obj1.GetFields();
-            var result = dic.ToCsvString();
-            Assert.AreEqual(@"""Date"": ""2022-08-03T00:00:00.000""; ""Flag"": ""False""; ""Id"": ""1""; ""Name"": ""Test 1""; ""Test"": ""null""",
+            var result = dic.ToCsv();
+            Assert.AreEqual(@"""Date"": ""2022-08-03T00:00:00.000""; ""Flag"": False; ""Id"": 1; ""Name"": ""Test 1""; ""Test"": null",
                 result);
         }
 
