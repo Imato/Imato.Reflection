@@ -101,7 +101,7 @@ namespace Imato.Reflection.Test
             };
             var dic = obj1.GetFields();
             var result = dic.ToCsv();
-            Assert.AreEqual(@"""Date"": ""2022-08-03T00:00:00.000""; ""Flag"": False; ""Id"": 1; ""Name"": ""Test 1""; ""Test"": null",
+            Assert.AreEqual(@"""Date"":""2022-08-03T00:00:00.000"";""Flag"":False;""Id"":1;""Name"":""Test 1"";""Test"":null",
                 result);
         }
 
@@ -119,6 +119,13 @@ namespace Imato.Reflection.Test
             Assert.AreEqual(6, resutl.Count);
             Assert.AreEqual(1, resutl["List[1].SubId"]);
             Assert.AreEqual("Nested 2", resutl["List[2].Name"]);
+        }
+
+        [Test]
+        public void CsvTest()
+        {
+            var dic = testObj.GetFields();
+            var result = dic.ToCsv();
         }
     }
 }

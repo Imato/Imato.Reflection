@@ -1,10 +1,34 @@
 ﻿using FastMember;
 using System.Collections;
+using System.Collections.Concurrent;
 
 namespace Imato.Reflection
 {
     public static class Objects
     {
+        private static ConcurrentDictionary<string, Accessor> _accessors
+            = new ConcurrentDictionary<string, Accessor>();
+
+        private static Accessor GetAccessor(Type type,
+            string[]? skipFields)
+        {
+            return _accessors.GetOrAdd(type.Name, (_) =>
+            {
+                var accessor = new Accessor
+                {
+                    Name = type.Name,
+                    TypeAccessor = TypeAccessor.Create(type)
+                };
+                accessor.Members = accessor.TypeAccessor
+                    .GetMembers()
+                    .ToArray()
+                    .Where(m => m.CanRead
+                        && (skipFields == null || !skipFields.Contains(m.Name)))
+                    .ToArray();
+                return accessor;
+            });
+        }
+
         /// <summary>
         /// Get object fields dictionary
         /// </summary>
@@ -49,27 +73,24 @@ namespace Imato.Reflection
                 return dic;
             }
 
-            var accessor = TypeAccessor.Create(type);
-            foreach (var m in accessor.GetMembers())
+            var accessor = GetAccessor(type, skipFields);
+            foreach (var m in accessor.Members)
             {
                 done = false;
 
-                if (m.CanRead && (skipFields == null || !skipFields.Contains(m.Name)))
+                var name = fieldName == "" ? m.Name : $"{fieldName}.{m.Name}";
+                var value = accessor.TypeAccessor[obj, m.Name];
+                if (m.Type.IsValueType || m.Type == typeof(string) || value is null)
                 {
-                    var name = fieldName == "" ? m.Name : $"{fieldName}.{m.Name}";
-                    var value = accessor[obj, m.Name];
-                    if (m.Type.IsValueType || m.Type == typeof(string) || value is null)
-                    {
-                        AddToDictionary(dic, name, value, skipFields);
-                        done = true;
-                    }
+                    AddToDictionary(dic, name, value, skipFields);
+                    done = true;
+                }
 
-                    if (!done && level < 10 && !skipChildren)
+                if (!done && level < 10 && !skipChildren)
+                {
+                    foreach (var n in GetFieldsList(value, m.Type, skipFields, false, level++, name))
                     {
-                        foreach (var n in GetFieldsList(value, m.Type, skipFields, false, level++, name))
-                        {
-                            AddToDictionary(dic, n.Key, n.Value, skipFields);
-                        }
+                        AddToDictionary(dic, n.Key, n.Value, skipFields);
                     }
                 }
             }

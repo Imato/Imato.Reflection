@@ -32,7 +32,9 @@ namespace Imato.Reflection
         /// </summary>
         /// <param name="dic"></param>
         /// <returns></returns>
-        public static string ToCsv(this IDictionary<string, object?> dic)
+        public static string ToCsv(
+            this IDictionary<string, object?> dic,
+            bool withNames = true)
         {
             var sb = new StringBuilder();
             var first = true;
@@ -42,16 +44,20 @@ namespace Imato.Reflection
                 done = false;
                 if (!first)
                 {
-                    sb.Append("; ");
+                    sb.Append(";");
                 }
                 else
                 {
                     first = false;
                 }
-                sb.Append(@"""");
-                sb.Append(d.Key);
-                sb.Append(@"""");
-                sb.Append(": ");
+
+                if (withNames)
+                {
+                    sb.Append(@"""");
+                    sb.Append(d.Key);
+                    sb.Append(@"""");
+                    sb.Append(":");
+                }
 
                 if (d.Value == null)
                 {
@@ -83,10 +89,43 @@ namespace Imato.Reflection
             return sb.ToString();
         }
 
-        public static string ToCsv<T>(this T obj)
+        public static string ToCsvString(object? o)
         {
-            var dic = obj.GetFields();
-            return dic.ToCsv();
+            if (o == null)
+            {
+                return "null";
+            }
+
+            if (o is DateTime)
+            {
+                return $"\"{(DateTime)o:yyyy-MM-ddTHH:mm:ss.fff}\"";
+            }
+
+            if (o is ValueType && o is not string)
+            {
+                return o?.ToString() ?? "null";
+            }
+
+            return $"\"{o}\"";
+        }
+
+        public static string ToCsv<T>(
+            this T obj,
+            bool withNames = true)
+        {
+            if (obj == null)
+            {
+                return "null";
+            }
+
+            var dic = (obj as IDictionary<string, object>)
+                ?? obj.GetFields();
+            if (dic != null)
+            {
+                return dic.ToCsv(withNames);
+            }
+
+            return "null";
         }
     }
 }
