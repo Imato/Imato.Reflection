@@ -1,4 +1,5 @@
 ﻿using FastMember;
+using System.Collections.Generic;
 
 namespace Imato.Reflection
 {

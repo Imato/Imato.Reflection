@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -73,7 +75,7 @@ namespace Imato.Reflection
                     done = true;
                 }
 
-                if (!done && d.Value is ValueType && d.Value is not string)
+                if (!done && d.Value is ValueType && d.Value.GetType() != typeof(string))
                 {
                     sb.Append(d.Value?.ToString() ?? "null");
                     done = true;
@@ -101,7 +103,7 @@ namespace Imato.Reflection
                 return $"\"{(DateTime)o:yyyy-MM-ddTHH:mm:ss.fff}\"";
             }
 
-            if (o is ValueType && o is not string)
+            if (o is ValueType && o.GetType() != typeof(string))
             {
                 return o?.ToString() ?? "null";
             }

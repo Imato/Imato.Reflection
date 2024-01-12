@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System;
+using System.Linq;
 
 namespace Imato.Reflection.Test
 {
@@ -32,6 +33,27 @@ namespace Imato.Reflection.Test
             var result = obj.GetFields();
             Assert.AreEqual(5, result.Count);
             Assert.True(result.ContainsKey("Name"));
+            Assert.That(result["Id"], Is.EqualTo(obj.Id));
+
+            result = obj.GetFields(skipFields: "flag,name".Split(","));
+            Assert.AreEqual(3, result.Count);
+            Assert.IsTrue(result.ContainsKey("Date"));
+            Assert.IsFalse(result.ContainsKey("Fame"));
+
+            result = obj.GetFields(fields: "Name,date".Split(","));
+            Assert.AreEqual(2, result.Count);
+            Assert.IsTrue(result.ContainsKey("Name"));
+            Assert.That(result["Name"], Is.EqualTo(obj.Name));
+            Assert.IsTrue(result.ContainsKey("Date"));
+        }
+
+        [Test]
+        public void GetFieldNamesTest()
+        {
+            var result = Objects.GetFieldNames<TestClass>();
+            Assert.AreEqual(6, result.Count());
+            Assert.True(result.Contains("Name"));
+            Assert.True(result.Contains("Test.Name"));
         }
 
         [Test]
