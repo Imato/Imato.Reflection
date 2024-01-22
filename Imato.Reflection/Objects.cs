@@ -15,20 +15,24 @@ namespace Imato.Reflection
         private static Accessor GetAccessor(Type type,
             string[]? skipFields = null)
         {
-            return _accessors.GetOrAdd(type.Name, (_) =>
+            if (type.Name == "Object")
+                return CreateAccessor(type, skipFields);
+            return _accessors.GetOrAdd(type.Name, CreateAccessor(type, skipFields));
+        }
+
+        private static Accessor CreateAccessor(Type type,
+            string[]? skipFields = null)
+        {
+            var accessor = new Accessor
             {
-                var accessor = new Accessor
-                {
-                    Name = type.Name,
-                    TypeAccessor = TypeAccessor.Create(type)
-                };
-                accessor.Members = accessor.TypeAccessor
-                    .GetMembers()
-                    .Where(m => m.CanRead
-                        && (skipFields == null || !skipFields.Contains(m.Name)))
-                    .ToArray();
-                return accessor;
-            });
+                Name = type.Name,
+                TypeAccessor = TypeAccessor.Create(type)
+            };
+            accessor.Members = accessor.TypeAccessor
+                .GetMembers()
+                .Where(m => m.CanRead)
+                .ToArray();
+            return accessor;
         }
 
         /// <summary>
@@ -36,7 +40,7 @@ namespace Imato.Reflection
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="obj">Object</param>
-        /// <param name="skipFields">List on fields </param>
+        /// <param name="skipFields">List on fields that skipped</param>
         /// <param name="skipChildren">Skip children object</param>
         /// <returns></returns>
         public static IDictionary<string, object?> GetFields<T>(this T obj,
@@ -44,7 +48,8 @@ namespace Imato.Reflection
             bool skipChildren = false,
             string[]? fields = null)
         {
-            return GetFieldsList(obj, skipFields, fields, skipChildren);
+            var type = typeof(T);
+            return GetFieldsList(obj, type, skipFields, fields, skipChildren);
         }
 
         private static IDictionary<string, object?> GetFieldsList(object? obj,
@@ -98,6 +103,37 @@ namespace Imato.Reflection
                     {
                         AddToDictionary(dic, n.Key, n.Value, skipFields, fields);
                     }
+                }
+            }
+            return dic;
+        }
+
+        /// <summary>
+        /// Get object fields dictionary
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj">Object</param>
+        /// <param name="skipFields">List on fields that skipped</param>
+        /// <returns></returns>
+        public static IDictionary<string, object?> GetDynamicFields(dynamic? obj,
+            string[]? skipFields = null,
+            string[]? fields = null)
+        {
+            var type = obj.GetType();
+            var dic = new Dictionary<string, object?>();
+
+            if (obj == null)
+            {
+                return dic;
+            }
+
+            var accessor = GetAccessor(type, skipFields);
+            foreach (var m in accessor.Members)
+            {
+                var value = accessor.TypeAccessor[obj, m.Name];
+                if (m.Type.IsValueType || m.Type == typeof(string) || value is null)
+                {
+                    AddToDictionary(dic, m.Name, value, skipFields, fields);
                 }
             }
             return dic;
@@ -187,12 +223,6 @@ namespace Imato.Reflection
             {
                 list.Add(value);
             }
-        }
-
-        private static IDictionary<string, object?> GetFieldsList<T>(T obj, string[]? skipFields, string[]? fields, bool skipChildren)
-        {
-            var type = typeof(T);
-            return GetFieldsList(obj, type, skipFields, fields, skipChildren);
         }
 
         /// <summary>
